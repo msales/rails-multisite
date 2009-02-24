@@ -34,9 +34,19 @@ ActionController::Base.class_eval do
   protected
   def add_multisite_path
     if current_site
-      new_path = File.join(RAILS_ROOT, 'sites', @active_site, 'views')
-      self.prepend_view_path(new_path)
-      logger.info "  Template View Paths: #{self.view_paths.inspect}"
+      # It is not enough to set it on ActionController::Base because we are
+      # are in a subclass at this point, so setting it here is too late.
+      # 
+      # However not setting it on ActionController::Base trips up other plugins
+      # that assume that ActionController::Base.view_paths is always correct.
+      [self, ActionController::Base].each do |o|
+        # reset ActionControllers page cache dir to caches/xxxx/public
+        o.page_cache_directory = File.join(RAILS_ROOT, 'caches', @active_site, 'public') 
+        # reset ActionControllers view paths to app/views and prepend the current active site
+        self.view_paths = [File.join(RAILS_ROOT, 'sites', @active_site, 'views'), File.join(RAILS_ROOT, 'app', 'views')]
+      end
+      logger.info "#{self.class}.page_cache_directory: " + self.page_cache_directory
+      logger.info "#{self.class}.view_paths: " + self.view_paths.join(":")
     end
     return true
   end
